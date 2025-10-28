@@ -1,4 +1,13 @@
 /* global chrome */
+
+// (function () {
+//   if (window.__BUG_REPORTER_LOADED__) {
+//     console.log("Content script already loaded. Skipping duplicate.");
+//     return;
+//   }
+//   window.__BUG_REPORTER_LOADED__ = true;
+// })();
+
 let selectionBox = null;
 let startX, startY, endX, endY;
 let isSelecting = false;
@@ -22,6 +31,68 @@ function disableSelection() {
     selectionBox = null;
   }
 }
+
+let hoverBox = null;
+// let clickMarker = null;
+
+function enableClickSelection() {
+  document.addEventListener("mousemove", onHoverElement);
+  document.addEventListener("click", onClickElement, true);
+  document.body.style.cursor = "pointer";
+}
+
+function disableClickSelection() {
+  document.removeEventListener("mousemove", onHoverElement);
+  document.removeEventListener("click", onClickElement, true);
+  document.body.style.cursor = "default";
+  if (hoverBox) hoverBox.remove();
+}
+
+function onHoverElement(e) {
+  const el = e.target;
+  const rect = el.getBoundingClientRect();
+
+  if (!hoverBox) {
+    hoverBox = document.createElement("div");
+    hoverBox.style.position = "fixed";
+    hoverBox.style.pointerEvents = "none";
+    hoverBox.style.border = "2px solid red";
+    hoverBox.style.zIndex = "999999";
+    document.body.appendChild(hoverBox);
+  }
+
+  hoverBox.style.left = rect.left + "px";
+  hoverBox.style.top = rect.top + "px";
+  hoverBox.style.width = rect.width + "px";
+  hoverBox.style.height = rect.height + "px";
+}
+
+function onClickElement(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const el = e.target;
+  const rect = el.getBoundingClientRect();
+
+  disableClickSelection();
+
+  chrome.runtime.sendMessage({
+    type: "ELEMENT_SELECTED",
+    rect: {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height
+    }
+  });
+}
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === "START_CLICK_SELECTION") {
+    enableClickSelection();
+  }
+});
+
 
 function onMouseDown(e) {
   isSelecting = true;

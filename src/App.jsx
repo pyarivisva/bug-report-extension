@@ -38,23 +38,28 @@ function App() {
   style={{ marginTop: "10px" }}
   onClick={() => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.scripting.executeScript(
-        {
-          target: { tabId: tabs[0].id },
-          files: ["contentScript.js"]
-        },
-        () => {
-          chrome.tabs.sendMessage(tabs[0].id, { type: "START_SELECTION" });
-          window.close();
-        }
-      );
+      function send() {
+        chrome.tabs.sendMessage(tabs[0].id, { type: "START_CLICK_SELECTION" }, () => {
+          if (chrome.runtime.lastError) {
+            console.log("Retrying...");
+            setTimeout(send, 200);
+          } else {
+            window.close();
+          }
+        });
+      }
+      send();
     });
   }}
 >
   Start Markup
 </button>
+
+
+
     </div>
   );
+  
 }
 
 export default App;
