@@ -6,60 +6,108 @@ import useScreenRecording from "./hooks/useScreenRecording";
 
 function App() {
   const { imgUrl, captureScreenshot } = useScreenshot();
-  const { recording, videoRef, startRecording, stopRecording } = useScreenRecording();
+  const { recording, videoRef, startRecording, stopRecording } =
+    useScreenRecording();
+
+  /**
+   * Helper function untuk inject content script dan mengirim pesan.
+   * Ini adalah cara paling stabil (Solusi 2 dari chat kita sebelumnya).
+   */
+  const triggerContentScript = (message) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      // Pastikan ada tab aktif
+      if (!tabs[0] || !tabs[0].id) {
+        console.error("No active tab found. Cannot send message.");
+        return;
+      }
+      const tabId = tabs[0].id;
+
+      // 1. Selalu inject script terlebih dahulu
+      chrome.scripting.executeScript(
+        {
+          target: { tabId: tabId },
+          files: ["contentScript.js"], // Pastikan path ini benar
+        },
+        () => {
+          // Cek jika injeksi gagal (misal di halaman internal Chrome)
+          if (chrome.runtime.lastError) {
+            console.error(
+              "Script injection failed: ",
+              chrome.runtime.lastError.message
+            );
+            return;
+          }
+
+          // 2. Setelah script PASTI ada, baru kirim pesan
+          chrome.tabs.sendMessage(tabId, message, () => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                "Message send failed: ",
+                chrome.runtime.lastError.message
+              );
+            } else {
+              // 3. Jika pesan terkirim, tutup popup
+              window.close();
+            }
+          });
+        }
+      );
+    });
+  };
 
   return (
     <div className="container">
       <h3>Bug Reporter 🐞</h3>
 
-      {/* Screenshot */}
-      <button onClick={captureScreenshot}>
-        Capture Screenshot
-      </button>
-
+      {/* Fitur Screenshot & Video (Tidak berubah) */}
+      <button onClick={captureScreenshot}>Capture Screenshot</button>
       {imgUrl && (
-        <img src={imgUrl} style={{ width: "100%", marginTop: "10px" }} alt="Screenshot" />
+        <img
+          src={imgUrl}
+          style={{ width: "100%", marginTop: "10px" }}
+          alt="Screenshot"
+        />
       )}
-
-      {/* Video Recording */}
       {!recording ? (
         <button onClick={startRecording} style={{ marginTop: "10px" }}>
           Record Video
         </button>
       ) : (
-        <button onClick={stopRecording} style={{ marginTop: "10px", background: "red", color: "white" }}>
+        <button
+          onClick={stopRecording}
+          style={{ marginTop: "10px", background: "red", color: "white" }}
+        >
           Stop Recording
         </button>
       )}
+      <video
+        ref={videoRef}
+        style={{ width: "100%", marginTop: "10px" }}
+        controls
+      ></video>
 
-      <video ref={videoRef} style={{ width: "100%", marginTop: "10px" }} controls></video>
+      {/* Garis pemisah */}
+      <hr style={{ margin: "15px 0", borderColor: "#eee" }} />
 
+      {/* === PERUBAHAN DI SINI === */}
+
+      {/* TOMBOL BARU UNTUK D1 (Drag Selection) */}
       <button
-  style={{ marginTop: "10px" }}
-  onClick={() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      function send() {
-        chrome.tabs.sendMessage(tabs[0].id, { type: "START_CLICK_SELECTION" }, () => {
-          if (chrome.runtime.lastError) {
-            console.log("Retrying...");
-            setTimeout(send, 200);
-          } else {
-            window.close();
-          }
-        });
-      }
-      send();
-    });
-  }}
->
-  Start Markup
-</button>
+        style={{ marginTop: "5px", width: "100%" }}
+        onClick={() => triggerContentScript({ type: "START_SELECTION" })}
+      >
+        Select Area (Drag)
+      </button>
 
-
-
+      {/* TOMBOL LAMA (D2) YANG DIGANTI NAMA */}
+      <button
+        style={{ marginTop: "10px", width: "100%" }}
+        onClick={() => triggerContentScript({ type: "START_CLICK_SELECTION" })}
+      >
+        Select Element (Click)
+      </button>
     </div>
   );
-  
 }
 
 export default App;
