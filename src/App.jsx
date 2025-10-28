@@ -1,3 +1,4 @@
+/* global chrome */
 import React from "react";
 import "./App.css";
 import useScreenshot from "./hooks/useScreenshots";
@@ -32,6 +33,26 @@ function App() {
       )}
 
       <video ref={videoRef} style={{ width: "100%", marginTop: "10px" }} controls></video>
+
+      <button
+  style={{ marginTop: "10px" }}
+  onClick={() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      chrome.scripting.executeScript(
+        {
+          target: { tabId: tabs[0].id },
+          files: ["contentScript.js"]
+        },
+        () => {
+          chrome.tabs.sendMessage(tabs[0].id, { type: "START_SELECTION" });
+          window.close();
+        }
+      );
+    });
+  }}
+>
+  Start Markup
+</button>
     </div>
   );
 }
