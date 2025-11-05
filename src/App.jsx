@@ -9,10 +9,7 @@ function App() {
   const { recording, videoRef, startRecording, stopRecording } =
     useScreenRecording();
 
-  /**
-   * Helper function untuk inject content script dan mengirim pesan.
-   * Ini adalah cara paling stabil (Solusi 2 dari chat kita sebelumnya).
-   */
+  //  Helper function untuk inject content script dan mengirim pesan.
   const triggerContentScript = (message) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       // Pastikan ada tab aktif
@@ -22,11 +19,11 @@ function App() {
       }
       const tabId = tabs[0].id;
 
-      // 1. Selalu inject script terlebih dahulu
+      // Selalu inject script terlebih dahulu
       chrome.scripting.executeScript(
         {
           target: { tabId: tabId },
-          files: ["contentScript.js"], // Pastikan path ini benar
+          files: ["contentScript.js"],
         },
         () => {
           // Cek jika injeksi gagal (misal di halaman internal Chrome)
@@ -38,7 +35,6 @@ function App() {
             return;
           }
 
-          // 2. Setelah script PASTI ada, baru kirim pesan
           chrome.tabs.sendMessage(tabId, message, () => {
             if (chrome.runtime.lastError) {
               console.error(
@@ -46,7 +42,7 @@ function App() {
                 chrome.runtime.lastError.message
               );
             } else {
-              // 3. Jika pesan terkirim, tutup popup
+              // Jika pesan terkirim, tutup popup
               window.close();
             }
           });
