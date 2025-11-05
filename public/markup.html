@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Screenshot Markup</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #111;
+            color: white;
+        }
+
+        #toolbar {
+            margin: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        canvas {
+            border: 2px solid #fff;
+            cursor: crosshair;
+            max-width: 90vw;
+            max-height: 80vh;
+        }
+
+        textarea,
+        input {
+            font-size: 14px;
+            border-radius: 6px;
+            padding: 5px;
+        }
+
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toolbar">
+        <input id="title" placeholder="Bug title" />
+        <textarea id="desc" placeholder="Describe bug..." rows="2" cols="30"></textarea>
+        <button id="save">Save</button>
+    </div>
+    <canvas id="markupCanvas"></canvas>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const imgUrl = params.get("img");
+        const canvas = document.getElementById("markupCanvas");
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        img.src = imgUrl;
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+        };
+
+        // Simple rectangle draw
+        let startX, startY;
+        canvas.addEventListener("mousedown", (e) => {
+            startX = e.offsetX;
+            startY = e.offsetY;
+        });
+        canvas.addEventListener("mouseup", (e) => {
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(startX, startY, e.offsetX - startX, e.offsetY - startY);
+        });
+
+        // Save result
+        document.getElementById("save").addEventListener("click", () => {
+            const title = document.getElementById("title").value;
+            const desc = document.getElementById("desc").value;
+            const result = canvas.toDataURL("image/png");
+            console.log("📸 Bug captured:", { title, desc, result });
+            alert("Bug saved (check console)");
+        });
+    </script>
+</body>
+
+</html>

@@ -1,251 +1,193 @@
 /* global chrome */
 
-(function () {
-  if (window.__BUG_REPORTER_LOADED__) {
-    // Kita biarkan guard ini untuk mencegah duplikasi listener
-    // jika kita menggunakan programmatic injection (Solusi 2)
-    return;
-  }
-  window.__BUG_REPORTER_LOADED__ = true;
-})();
-
-let selectionBox = null;
-let startX, startY, endX, endY;
-let isSelecting = false;
-
-let hoverBox = null;
-
-// BARU: Variabel global untuk melacak tooltip yang sedang aktif
-let activeTooltip = null;
-
-// --- Fungsi D1 (Drag Selection) ---
-
-function enableSelection() {
-  document.addEventListener("mousedown", onMouseDown);
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-  document.body.style.cursor = "crosshair";
-}
-
-function disableSelection() {
-  document.removeEventListener("mousedown", onMouseDown);
-  document.removeEventListener("mousemove", onMouseMove);
-  document.removeEventListener("mouseup", onMouseUp);
-  document.body.style.cursor = "default";
-  if (selectionBox) {
-    selectionBox.remove();
-    selectionBox = null;
-  }
-}
-
-function onMouseDown(e) {
-  // Cegah trigger jika kita klik di dalam tooltip
-  if (e.target.closest("#bug-reporter-tooltip")) return;
-
-  isSelecting = true;
-  startX = e.clientX;
-  startY = e.clientY;
-
-  selectionBox = document.createElement("div");
-  selectionBox.style.position = "fixed";
-  selectionBox.style.border = "2px solid red";
-  selectionBox.style.pointerEvents = "none";
-  selectionBox.style.zIndex = "999999";
-  document.body.appendChild(selectionBox);
-}
-
-function onMouseMove(e) {
-  if (!isSelecting) return;
-  endX = e.clientX;
-  endY = e.clientY;
-
-  const rect = {
-    left: Math.min(startX, endX),
-    top: Math.min(startY, endY),
-    width: Math.abs(startX - endX),
-    height: Math.abs(startY - endY),
-  };
-
-  selectionBox.style.left = rect.left + "px";
-  selectionBox.style.top = rect.top + "px";
-  selectionBox.style.width = rect.width + "px";
-  selectionBox.style.height = rect.height + "px";
-}
-
-function onMouseUp() {
-  isSelecting = false;
-
-  const rect = selectionBox.getBoundingClientRect();
-  disableSelection();
-
-  // BARU: Panggil tooltip form, jangan kirim message
-  showTooltipForm(rect);
-}
-
-// --- Fungsi D2 (Click Selection) ---
-
-function enableClickSelection() {
-  document.addEventListener("mousemove", onHoverElement);
-  document.addEventListener("click", onClickElement, true);
-  document.body.style.cursor = "pointer";
-}
-
-function disableClickSelection() {
-  document.removeEventListener("mousemove", onHoverElement);
-  document.removeEventListener("click", onClickElement, true);
-  document.body.style.cursor = "default";
-  if (hoverBox) hoverBox.remove();
-}
-
-function onHoverElement(e) {
-  // Cegah hover jika kita di atas tooltip
-  if (e.target.closest("#bug-reporter-tooltip")) {
-    if (hoverBox) hoverBox.remove();
-    return;
-  }
-
-  const el = e.target;
-  const rect = el.getBoundingClientRect();
-
-  if (!hoverBox) {
-    hoverBox = document.createElement("div");
-    hoverBox.style.position = "fixed";
-    hoverBox.style.pointerEvents = "none";
-    hoverBox.style.border = "2px solid red";
-    hoverBox.style.zIndex = "999999";
-    document.body.appendChild(hoverBox);
-  }
-
-  hoverBox.style.left = rect.left + "px";
-  hoverBox.style.top = rect.top + "px";
-  hoverBox.style.width = rect.width + "px";
-  hoverBox.style.height = rect.height + "px";
-}
-
-function onClickElement(e) {
-  // Cegah trigger jika kita klik di dalam tooltip
-  if (e.target.closest("#bug-reporter-tooltip")) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  const el = e.target;
-  const rect = el.getBoundingClientRect();
-
-  disableClickSelection();
-
-  // BARU: Panggil tooltip form, jangan kirim message
-  showTooltipForm(rect);
-}
-
-// --- BARU: Fungsi D3 (Tooltip Form) ---
-
-function showTooltipForm(rect) {
-  // Hapus tooltip lama jika ada
-  if (activeTooltip) {
-    activeTooltip.remove();
-  }
-
-  // Buat elemen form
-  activeTooltip = document.createElement("div");
-  activeTooltip.id = "bug-reporter-tooltip";
-
-  // Styling (bisa dipindah ke file CSS nanti)
-  activeTooltip.style.position = "absolute";
-  activeTooltip.style.zIndex = "9999999";
-  activeTooltip.style.background = "white";
-  activeTooltip.style.border = "1px solid #ddd";
-  activeTooltip.style.borderRadius = "8px";
-  activeTooltip.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-  activeTooltip.style.padding = "10px";
-  activeTooltip.style.width = "250px";
-  activeTooltip.style.fontFamily = "Arial, sans-serif";
-
-  // Posisi: di bawah elemen + 10px, ditambah scroll offset
-  activeTooltip.style.left = `${rect.left + window.scrollX}px`;
-  activeTooltip.style.top = `${rect.bottom + window.scrollY + 10}px`;
-
-  // Isi HTML untuk form
-  activeTooltip.innerHTML = `
-    <div style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">Report Bug</div>
-    <textarea 
-      id="bug-reporter-textarea" 
-      placeholder="Describe the bug..." 
-      style="width: 100%; box-sizing: border-box; height: 70px; border: 1px solid #ccc; border-radius: 4px; padding: 5px; font-family: Arial, sans-serif;"
-    ></textarea>
-    <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-      <button id="bug-reporter-cancel" style="background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; padding: 5px 10px; cursor: pointer; margin-right: 5px;">
-        Cancel
-      </button>
-      <button id="bug-reporter-submit" style="background: #007bff; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">
-        Submit
-      </button>
-    </div>
-  `;
-
-  document.body.appendChild(activeTooltip);
-
-  // Fokus otomatis ke textarea
-  activeTooltip.querySelector("#bug-reporter-textarea").focus();
-
-  // Tambah listener untuk tombol
-  activeTooltip
-    .querySelector("#bug-reporter-submit")
-    .addEventListener("click", () => {
-      const comment =
-        activeTooltip.querySelector("#bug-reporter-textarea").value;
-
-      // Kumpulkan semua data
-      const bugData = {
-        comment: comment,
-        rect: {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        },
-        url: window.location.href,
-        timestamp: new Date().toISOString(),
-      };
-
-      // (Untuk D4/D5, di sinilah kita akan trigger screenshot)
-
-      // Kirim data ke background (atau popup, tapi background lebih baik)
-      console.log("Bug submitted:", bugData);
-      chrome.runtime.sendMessage({ type: "BUG_SUBMITTED", payload: bugData });
-
-      // Hapus tooltip
-      activeTooltip.remove();
-      activeTooltip = null;
-    });
-
-  activeTooltip
-    .querySelector("#bug-reporter-cancel")
-    .addEventListener("click", () => {
-      // Hapus tooltip
-      activeTooltip.remove();
-      activeTooltip = null;
-    });
-}
-
-// --- Listener Utama (Tidak berubah) ---
-
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === "START_SELECTION") {
-    // Hapus tooltip jika ada, sebelum memulai seleksi baru
-    if (activeTooltip) {
-      activeTooltip.remove();
-      activeTooltip = null;
-    }
-    enableSelection();
-  }
-
-  if (msg.type === "START_CLICK_SELECTION") {
-    // Hapus tooltip jika ada, sebelum memulai seleksi baru
-    if (activeTooltip) {
-      activeTooltip.remove();
-      activeTooltip = null;
-    }
-    enableClickSelection();
+// contentScript.js
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "SHOW_MARKUP_OVERLAY") {
+    showMarkupOverlay(message.image);
   }
 });
+
+function showMarkupOverlay(imageSrc) {
+  // Hapus overlay lama jika ada
+  const existing = document.getElementById("bug-overlay");
+  if (existing) existing.remove();
+
+  // Overlay utama
+  const overlay = document.createElement("div");
+  overlay.id = "bug-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    background: "rgba(0,0,0,0.7)",
+    zIndex: 999999,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  });
+  document.body.appendChild(overlay);
+
+  // Container putih di tengah
+  const container = document.createElement("div");
+  Object.assign(container.style, {
+    position: "relative",
+    background: "#fff",
+    padding: "10px",
+    borderRadius: "8px",
+    boxShadow: "0 0 10px rgba(0,0,0,0.5)",
+  });
+  overlay.appendChild(container);
+
+  // Gambar di canvas
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+  img.src = imageSrc;
+  img.onload = () => {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+  };
+  container.appendChild(canvas);
+
+  // Toolbar
+  const toolbar = document.createElement("div");
+  Object.assign(toolbar.style, {
+    marginTop: "10px",
+    textAlign: "center",
+  });
+  container.appendChild(toolbar);
+
+  // Tombol Markup
+  const markupBtn = document.createElement("button");
+  markupBtn.textContent = "Start Markup";
+  markupBtn.style.background = "#28a745";
+  markupBtn.style.color = "white";
+  markupBtn.style.padding = "6px 12px";
+  markupBtn.style.border = "none";
+  markupBtn.style.borderRadius = "6px";
+  markupBtn.style.cursor = "pointer";
+  toolbar.appendChild(markupBtn);
+
+  // Tombol Close
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Close";
+  Object.assign(closeBtn.style, {
+    background: "#dc3545",
+    color: "white",
+    padding: "6px 12px",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    marginLeft: "10px",
+  });
+  closeBtn.onclick = () => overlay.remove();
+  toolbar.appendChild(closeBtn);
+
+  // Aktifkan markup mode
+  markupBtn.onclick = () => {
+    startMarkupMode(canvas, img, ctx);
+  };
+}
+
+function startMarkupMode(canvas, img, ctx) {
+  let start = null;
+  let activeRect = null;
+
+  const handleMouseDown = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    start = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const handleMouseMove = (e) => {
+    if (!start) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const w = x - start.x;
+    const h = y - start.y;
+    ctx.drawImage(img, 0, 0);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(start.x, start.y, w, h);
+    activeRect = { x: start.x, y: start.y, w, h };
+  };
+
+  const handleMouseUp = () => {
+    if (activeRect) {
+      showBugForm(canvas, activeRect);
+    }
+    start = null;
+  };
+
+  canvas.addEventListener("mousedown", handleMouseDown);
+  canvas.addEventListener("mousemove", handleMouseMove);
+  canvas.addEventListener("mouseup", handleMouseUp);
+}
+
+function showBugForm(canvas, rect) {
+  // Buat popup form kecil
+  const form = document.createElement("div");
+  Object.assign(form.style, {
+    position: "absolute",
+    top: `${rect.y + rect.h + 10}px`,
+    left: `${rect.x}px`,
+    background: "white",
+    border: "1px solid #aaa",
+    borderRadius: "6px",
+    padding: "8px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+    width: "200px",
+    zIndex: 1000000,
+  });
+  canvas.parentElement.appendChild(form);
+
+  const title = document.createElement("input");
+  title.placeholder = "Bug Title";
+  Object.assign(title.style, {
+    width: "100%",
+    marginBottom: "5px",
+  });
+  form.appendChild(title);
+
+  const desc = document.createElement("textarea");
+  desc.placeholder = "Description";
+  Object.assign(desc.style, {
+    width: "100%",
+    height: "60px",
+  });
+  form.appendChild(desc);
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "Save";
+  Object.assign(saveBtn.style, {
+    background: "#007bff",
+    color: "white",
+    width: "100%",
+    marginTop: "5px",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  });
+  form.appendChild(saveBtn);
+
+  saveBtn.onclick = () => {
+    const bug = {
+      x: rect.x,
+      y: rect.y,
+      w: rect.w,
+      h: rect.h,
+      title: title.value,
+      desc: desc.value,
+    };
+
+    chrome.storage.local.get("bugs", (data) => {
+      const updated = [...(data.bugs || []), bug];
+      chrome.storage.local.set({ bugs: updated });
+    });
+
+    form.remove();
+  };
+}

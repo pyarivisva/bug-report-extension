@@ -1,162 +1,96 @@
 /* global chrome */
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import "./App.css";
 import useScreenshot from "./hooks/useScreenshots";
 
 function App() {
   const { imgUrl, captureScreenshot } = useScreenshot();
+  const [showPopup, setShowPopup] = useState(false);
 
-  const canvasRef = useRef(null);
-  const [isMarkupMode, setIsMarkupMode] = useState(false);
-  const [startPoint, setStartPoint] = useState(null);
-  const [bugs, setBugs] = useState([]);
-  const [activeBug, setActiveBug] = useState(null);
+  const handleCapture = async () => {
+    await captureScreenshot();
+    setShowPopup(true);
+  };
 
-  // Render screenshot di canvas
-  useEffect(() => {
-    if (imgUrl && canvasRef.current) {
-      const ctx = canvasRef.current.getContext("2d");
-      const img = new Image();
-      img.src = imgUrl;
-      img.onload = () => {
-        canvasRef.current.width = img.width;
-        canvasRef.current.height = img.height;
-        ctx.drawImage(img, 0, 0);
-      };
-    }
-  }, [imgUrl]);
-
-  const handleMouseDown = (e) => {
-    if (!isMarkupMode) return;
-    const rect = e.target.getBoundingClientRect();
-    setStartPoint({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+  const handleAddMarkup = () => {
+    // Kirim pesan ke content script dengan gambar screenshot
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        type: "SHOW_MARKUP_OVERLAY",
+        image: imgUrl,
+      });
     });
-  };
-
-  const handleMouseUp = (e) => {
-    if (!isMarkupMode || !startPoint) return;
-    const rect = e.target.getBoundingClientRect();
-    const end = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-    const newBugArea = {
-  x: Math.min(startPoint.x, end.x),
-  y: Math.min(startPoint.y, end.y),
-  w: Math.abs(startPoint.x - end.x),
-  h: Math.abs(startPoint.y - end.y),
-};
-setIsMarkupMode(false);
-setActiveBug(newBugArea);
-
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isMarkupMode || !startPoint) return;
-    const ctx = canvasRef.current.getContext("2d");
-    const img = new Image();
-    img.src = imgUrl;
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0);
-      const rect = e.target.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const w = x - startPoint.x;
-      const h = y - startPoint.y;
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(startPoint.x, startPoint.y, w, h);
-    };
-  };
-
-  const saveBug = (title, desc) => {
-    const newBug = { ...activeBug, title, desc };
-    const updated = [...bugs, newBug];
-    setBugs(updated);
-    chrome.storage.local.set({ bugs: updated });
-    setActiveBug(null);
+    window.close(); // Tutup popup
   };
 
   return (
     <div className="container">
       <h3>Bug Reporter</h3>
 
-      {/* Capture Screenshot */}
-      <button onClick={captureScreenshot}>Capture Screenshot</button>
+      <button onClick={handleCapture}>Capture Screenshot</button>
 
-      {/* Start Markup */}
-      {imgUrl && (
-        <button
-          style={{ marginTop: "10px" }}
-          onClick={() => setIsMarkupMode(true)}
+      {showPopup && imgUrl && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
         >
-          Start Markup
-        </button>
-      )}
-
-      {/* Canvas Screenshot */}
-      {imgUrl && (
-        <div style={{ position: "relative", marginTop: "10px" }}>
-          <canvas
-            ref={canvasRef}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            onMouseMove={handleMouseMove}
+          <div
             style={{
-              border: "1px solid #ccc",
-              width: "100%",
-              cursor: isMarkupMode ? "crosshair" : "default",
+              background: "#fff",
+              padding: "20px",
+              borderRadius: "10px",
+              textAlign: "center",
+              width: "80%",
+              maxWidth: "600px",
             }}
-          ></canvas>
-
-          {/* Tooltip Bug Form */}
-          {activeBug && (
-            <div
-              style={{
-                position: "absolute",
-                top: activeBug.y + activeBug.h + 10,
-                left: activeBug.x,
-                background: "white",
-                border: "1px solid #aaa",
-                padding: "8px",
-                borderRadius: "8px",
-                zIndex: 10,
-                width: "200px",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-              }}
-            >
-              <h4 style={{ margin: 0, fontSize: "14px" }}>Describe Bug</h4>
-              <input
-                type="text"
-                placeholder="Title"
-                id="bugTitle"
-                style={{ width: "100%", marginTop: "5px" }}
-              />
-              <textarea
-                placeholder="Description"
-                id="bugDesc"
-                style={{ width: "100%", marginTop: "5px", height: "60px" }}
-              ></textarea>
+          >
+            <h4>Screenshot Captured</h4>
+            <img
+              src={imgUrl}
+              alt="Screenshot"
+              style={{ width: "100%", borderRadius: "8px" }}
+            />
+            <div style={{ marginTop: "15px" }}>
               <button
                 style={{
-                  width: "100%",
-                  marginTop: "5px",
-                  background: "#007bff",
+                  marginTop: "10px",
+                  background: "#28a745",
                   color: "white",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
                 }}
-                onClick={() =>
-                  saveBug(
-                    document.getElementById("bugTitle").value,
-                    document.getElementById("bugDesc").value
-                  )
-                }
+                onClick={handleAddMarkup}
               >
-                Save
+                Add Markup
+              </button>
+
+              <button
+                onClick={() => setShowPopup(false)}
+                style={{
+                  background: "#ccc",
+                  padding: "8px 16px",
+                  border: "none",
+                  borderRadius: "6px",
+                  marginLeft: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                Close
               </button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>
