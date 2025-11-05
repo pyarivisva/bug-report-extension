@@ -1,107 +1,164 @@
 /* global chrome */
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "./App.css";
 import useScreenshot from "./hooks/useScreenshots";
-import useScreenRecording from "./hooks/useScreenRecording";
 
 function App() {
   const { imgUrl, captureScreenshot } = useScreenshot();
-  const { recording, videoRef, startRecording, stopRecording } =
-    useScreenRecording();
 
-  //  Helper function untuk inject content script dan mengirim pesan.
-  const triggerContentScript = (message) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      // Pastikan ada tab aktif
-      if (!tabs[0] || !tabs[0].id) {
-        console.error("No active tab found. Cannot send message.");
-        return;
-      }
-      const tabId = tabs[0].id;
+  const canvasRef = useRef(null);
+  const [isMarkupMode, setIsMarkupMode] = useState(false);
+  const [startPoint, setStartPoint] = useState(null);
+  const [bugs, setBugs] = useState([]);
+  const [activeBug, setActiveBug] = useState(null);
 
-      // Selalu inject script terlebih dahulu
-      chrome.scripting.executeScript(
-        {
-          target: { tabId: tabId },
-          files: ["contentScript.js"],
-        },
-        () => {
-          // Cek jika injeksi gagal (misal di halaman internal Chrome)
-          if (chrome.runtime.lastError) {
-            console.error(
-              "Script injection failed: ",
-              chrome.runtime.lastError.message
-            );
-            return;
-          }
+  // Render screenshot di canvas
+  useEffect(() => {
+    if (imgUrl && canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      const img = new Image();
+      img.src = imgUrl;
+      img.onload = () => {
+        canvasRef.current.width = img.width;
+        canvasRef.current.height = img.height;
+        ctx.drawImage(img, 0, 0);
+      };
+    }
+  }, [imgUrl]);
 
-          chrome.tabs.sendMessage(tabId, message, () => {
-            if (chrome.runtime.lastError) {
-              console.error(
-                "Message send failed: ",
-                chrome.runtime.lastError.message
-              );
-            } else {
-              // Jika pesan terkirim, tutup popup
-              window.close();
-            }
-          });
-        }
-      );
+  const handleMouseDown = (e) => {
+    if (!isMarkupMode) return;
+    const rect = e.target.getBoundingClientRect();
+    setStartPoint({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     });
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isMarkupMode || !startPoint) return;
+    const rect = e.target.getBoundingClientRect();
+    const end = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    const newBugArea = {
+  x: Math.min(startPoint.x, end.x),
+  y: Math.min(startPoint.y, end.y),
+  w: Math.abs(startPoint.x - end.x),
+  h: Math.abs(startPoint.y - end.y),
+};
+setIsMarkupMode(false);
+setActiveBug(newBugArea);
+
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isMarkupMode || !startPoint) return;
+    const ctx = canvasRef.current.getContext("2d");
+    const img = new Image();
+    img.src = imgUrl;
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      const rect = e.target.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const w = x - startPoint.x;
+      const h = y - startPoint.y;
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(startPoint.x, startPoint.y, w, h);
+    };
+  };
+
+  const saveBug = (title, desc) => {
+    const newBug = { ...activeBug, title, desc };
+    const updated = [...bugs, newBug];
+    setBugs(updated);
+    chrome.storage.local.set({ bugs: updated });
+    setActiveBug(null);
   };
 
   return (
     <div className="container">
-      <h3>Bug Reporter 🐞</h3>
+      <h3>Bug Reporter</h3>
 
-      {/* Fitur Screenshot & Video (Tidak berubah) */}
+      {/* Capture Screenshot */}
       <button onClick={captureScreenshot}>Capture Screenshot</button>
+
+      {/* Start Markup */}
       {imgUrl && (
-        <img
-          src={imgUrl}
-          style={{ width: "100%", marginTop: "10px" }}
-          alt="Screenshot"
-        />
-      )}
-      {!recording ? (
-        <button onClick={startRecording} style={{ marginTop: "10px" }}>
-          Record Video
-        </button>
-      ) : (
         <button
-          onClick={stopRecording}
-          style={{ marginTop: "10px", background: "red", color: "white" }}
+          style={{ marginTop: "10px" }}
+          onClick={() => setIsMarkupMode(true)}
         >
-          Stop Recording
+          Start Markup
         </button>
       )}
-      <video
-        ref={videoRef}
-        style={{ width: "100%", marginTop: "10px" }}
-        controls
-      ></video>
 
-      {/* Garis pemisah */}
-      <hr style={{ margin: "15px 0", borderColor: "#eee" }} />
+      {/* Canvas Screenshot */}
+      {imgUrl && (
+        <div style={{ position: "relative", marginTop: "10px" }}>
+          <canvas
+            ref={canvasRef}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            style={{
+              border: "1px solid #ccc",
+              width: "100%",
+              cursor: isMarkupMode ? "crosshair" : "default",
+            }}
+          ></canvas>
 
-      {/* === PERUBAHAN DI SINI === */}
-
-      {/* TOMBOL BARU UNTUK D1 (Drag Selection) */}
-      <button
-        style={{ marginTop: "5px", width: "100%" }}
-        onClick={() => triggerContentScript({ type: "START_SELECTION" })}
-      >
-        Select Area (Drag)
-      </button>
-
-      {/* TOMBOL LAMA (D2) YANG DIGANTI NAMA */}
-      <button
-        style={{ marginTop: "10px", width: "100%" }}
-        onClick={() => triggerContentScript({ type: "START_CLICK_SELECTION" })}
-      >
-        Select Element (Click)
-      </button>
+          {/* Tooltip Bug Form */}
+          {activeBug && (
+            <div
+              style={{
+                position: "absolute",
+                top: activeBug.y + activeBug.h + 10,
+                left: activeBug.x,
+                background: "white",
+                border: "1px solid #aaa",
+                padding: "8px",
+                borderRadius: "8px",
+                zIndex: 10,
+                width: "200px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+              }}
+            >
+              <h4 style={{ margin: 0, fontSize: "14px" }}>Describe Bug</h4>
+              <input
+                type="text"
+                placeholder="Title"
+                id="bugTitle"
+                style={{ width: "100%", marginTop: "5px" }}
+              />
+              <textarea
+                placeholder="Description"
+                id="bugDesc"
+                style={{ width: "100%", marginTop: "5px", height: "60px" }}
+              ></textarea>
+              <button
+                style={{
+                  width: "100%",
+                  marginTop: "5px",
+                  background: "#007bff",
+                  color: "white",
+                }}
+                onClick={() =>
+                  saveBug(
+                    document.getElementById("bugTitle").value,
+                    document.getElementById("bugDesc").value
+                  )
+                }
+              >
+                Save
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
