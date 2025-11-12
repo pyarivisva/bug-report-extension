@@ -20,7 +20,7 @@ function App() {
         image: imgUrl,
       });
     });
-    window.close(); // Tutup popup
+    window.close();
   };
 
   return (

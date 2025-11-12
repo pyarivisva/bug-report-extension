@@ -1,6 +1,5 @@
 /* global chrome */
 
-// contentScript.js
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === "SHOW_MARKUP_OVERLAY") {
     showMarkupOverlay(message.image);
