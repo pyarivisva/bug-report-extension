@@ -1,23 +1,28 @@
 {
   "manifest_version": 3,
-  "name": "Bug Report",
-  "description": "Simple Chrome Extension with React",
-  "version": "1.0.0",
+  "name": "Vitback",
+  "version": "1.0",
+  "description": "Laporkan bug dengan menunjuk dan mengklik elemen.",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
   "action": {
-    "default_popup": "index.html",
-    "default_title": "Bug Reporter"
+    "default_title": "Laporkan Bug",
+    "default_popup": "index.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
-  "permissions": ["tabs", "activeTab", "storage"],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "content_scripts": [
+  "web_accessible_resources": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["contentScript.js"]
+      "resources": [
+        "markup.html",
+        "markup.js",
+        "markup.css"
+      ],
+      "matches": ["<all_urls>"]
     }
   ]
 }

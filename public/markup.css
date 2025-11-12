@@ -1,0 +1,182 @@
+/* === File: public/markup.css (REVISI BESAR) === */
+body {
+    margin: 0;
+    background-color: #f0f0f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#screenshot-container {
+    position: relative;
+    /* Kunci agar pin bisa diposisikan */
+    display: inline-block;
+    /* Agar kontainer pas dengan gambar */
+    border: 2px solid #333;
+}
+
+#screenshot-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    cursor: crosshair;
+    /* Kursor penanda */
+}
+
+/* Wrapper untuk pin DAN form. 
+  Ini yang diposisikan di titik X, Y.
+*/
+.bug-tooltip-wrapper {
+    position: absolute;
+    z-index: 100;
+}
+
+/* Ini adalah "Pin" Anda */
+.bug-pin {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    background: #ff3b30;
+    /* Merah */
+    color: white;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    /* Pusatkan pin di titik kursor */
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: background-color 0.2s ease;
+}
+
+.bug-pin.submitted {
+    background: #34c759;
+    /* Hijau setelah dikirim */
+}
+
+/* Ini adalah form-nya, yang muncul seperti tooltip */
+.bug-form-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    width: 300px;
+    /* Posisikan form relatif terhadap pin */
+    transform: translate(-15px, 20px);
+    /* Geser sedikit dari pin */
+    z-index: 9;
+    animation: fadeIn 0.1s ease-out;
+}
+
+/* Segitiga ala tooltip */
+.bug-form-content::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    /* Posisikan di atas form */
+    left: 12px;
+    /* Posisikan dekat pin */
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid white;
+    /* Ini adalah segitiganya */
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-15px, 10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-15px, 20px);
+    }
+}
+
+.bug-form {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 8px;
+}
+
+.bug-form input,
+.bug-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    /* Penting */
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.bug-form textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.bug-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.bug-form-actions button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bug-send {
+    background-color: #007aff;
+    color: white;
+}
+
+.bug-cancel {
+    background-color: #f2f2f2;
+    color: #333;
+}
+
+#finish-markup-button {
+    /* Posisi melayang */
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    z-index: 1001;
+    /* Di atas segalanya */
+
+    /* Tampilan */
+    background-color: #34c759;
+    /* Hijau */
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    /* Dibuat lebih bulat (pil) */
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+
+    /* Transisi */
+    transition: all 0.2s ease-out;
+}
+
+#finish-markup-button:hover {
+    background-color: #2ca548;
+    /* Efek sedikit terangkat saat di-hover */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}

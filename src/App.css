@@ -1,21 +1,27 @@
-/* Ukuran popup extension */
-html,
+/* === File: src/App.css === */
 body {
-  width: 350px;
-  height: 550px;
   margin: 0;
-  padding: 0;
-  overflow: auto;
+  font-family: sans-serif;
 }
 
-#root {
-  width: 100%;
-  height: 100%;
+.popup-container {
+  width: 220px;
+  padding: 16px;
+  background-color: #f9f9f9;
 }
 
-.container {
+.popup-button {
   width: 100%;
-  height: auto;
   padding: 12px;
-  box-sizing: border-box;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  background-color: #007aff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.popup-button:hover {
+  background-color: #005ec4;
 }

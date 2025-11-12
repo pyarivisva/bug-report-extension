@@ -1,17 +1,21 @@
 /* global chrome */
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("Bug Reporter Extension installed");
-});
-
-chrome.runtime.onMessage.addListener((msg) => {
-  // Ambil screenshot dan buka halaman markup
-  if (msg.type === "CAPTURE_SCREENSHOT") {
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.action === "TAKE_SCREENSHOT") {
+    // 1. Ambil screenshot dari tab yang aktif
     chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
-      // buka tab baru untuk markup
-      const markupUrl = chrome.runtime.getURL("markup.html") + "?img=" + encodeURIComponent(dataUrl);
-      chrome.tabs.create({ url: markupUrl });
+      if (chrome.runtime.lastError) {
+        console.error(chrome.runtime.lastError.message);
+        return;
+      }
+      
+      // 2. Simpan dataUrl screenshot ke storage lokal sementara
+      chrome.storage.local.set({ 'latestScreenshot': dataUrl }, () => {
+        
+        // 3. Buka tab markup.html
+        chrome.tabs.create({ url: chrome.runtime.getURL('markup.html') });
+      });
     });
-    return true;
+    return true; // Menandakan bahwa kita akan merespons secara asinkron
   }
 });
